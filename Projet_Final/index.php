@@ -21,34 +21,24 @@ ob_start();
 // Router simple pour charger les modules
 switch($module) {
     case 'ventes':
-    $action = $_GET['action'] ?? 'ventes';
-    
-    switch ($action) {
-        case 'select_client':
-            include 'modules/ventes/select_client.php';
-            break;
-            
-        case 'nouveau_client':
-            include 'modules/ventes/nouveau_client.php';
-            break;
-            
-        case 'panier':
-            include 'modules/ventes/panier.php';
-            break;
-            
-        case 'clients':
-            include 'modules/ventes/clients.php';
-            break;
-            
-        case 'valider':
-            include 'modules/ventes/valider.php';
-            break;
-            
-        default:
-            include 'modules/ventes/ventes.php';
-            break;
-    }
-    break;
+        if ($action === 'panier') {
+            require_once 'modules/ventes/panier.php';
+        } elseif ($action === 'clients') {
+            require_once 'modules/ventes/clients.php';
+        } elseif ($action === 'valider') {
+            require_once 'modules/ventes/valider.php';
+        } elseif ($action === 'cart_handler') {
+            require_once 'modules/ventes/cart_handler.php';
+        } elseif ($action === 'select_client') {
+            require_once 'modules/ventes/select_client.php';
+        } elseif ($action === 'nouveau_client') {
+            require_once 'modules/ventes/nouveau_client.php';
+        } elseif($action === 'commandes'){
+            require_once 'modules/ventes/commandes.php';
+        } else {
+            require_once 'modules/ventes/ventes.php';
+        }
+        break;
     
     case 'achats':
         if ($action === 'ajout') {
@@ -89,7 +79,13 @@ switch($module) {
             require_once 'modules/rh/personnel.php';
         }
         break;
-    
+    case 'personnel';
+        if($action === 'employe_paie'){
+            require_once 'modules/personnel/employe_paie.php';
+        } elseif ($action === 'employe'){
+            require_once 'modules/personnel/employe.php';
+        }
+        break;
     case 'admin':
         if ($action === 'suppliers') {
             require_once 'modules/admin/suppliers.php';

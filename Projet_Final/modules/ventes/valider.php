@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../include/db.php';
 // Log de débogage
 error_log("=== DÉBUT VALIDATION VENTE ===");
 error_log("GET params: " . print_r($_GET, true));
+error_log("POST params: " . print_r($_POST, true));
 error_log("Panier: " . print_r($_SESSION['temp_cart'] ?? [], true));
 
 try {
@@ -19,13 +20,32 @@ try {
     
     error_log("Client ID: $client_id, Payment: $payment_method, Channel: $channel");
     
-    // Vérifier le panier
-    if (empty($_SESSION['temp_cart'])) {
-        throw new Exception("Le panier est vide");
+    // VÉRIFICATION CRITIQUE : Client ID ne peut pas être null
+    if (!$client_id || $client_id === 'null') {
+        error_log("ERREUR: Client ID manquant ou null");
+        $_SESSION['error'] = "
+            <div style='text-align: center;'>
+                <div style='font-size: 3rem; margin-bottom: 1rem;'>❌</div>
+                <h3 style='margin-bottom: 1rem; color: #ff4757;'>Aucun client sélectionné</h3>
+                <p style='font-size: 1.1rem;'>Vous devez sélectionner un client avant de valider une vente.</p>
+            </div>
+        ";
+        header('Location: index.php?module=ventes&action=select_client');
+        exit;
     }
     
-    if (!$client_id) {
-        throw new Exception("Client non spécifié");
+    // Vérifier le panier
+    if (empty($_SESSION['temp_cart'])) {
+        error_log("ERREUR: Panier vide");
+        $_SESSION['error'] = "
+            <div style='text-align: center;'>
+                <div style='font-size: 3rem; margin-bottom: 1rem;'>🛒</div>
+                <h3 style='margin-bottom: 1rem; color: #ff4757;'>Panier vide</h3>
+                <p style='font-size: 1.1rem;'>Veuillez ajouter des produits au panier avant de valider.</p>
+            </div>
+        ";
+        header('Location: index.php?module=ventes&action=panier&client_id=' . $client_id);
+        exit;
     }
     
     // Vérifier que le client existe
@@ -34,7 +54,16 @@ try {
     $client = $stmt->fetch();
     
     if (!$client) {
-        throw new Exception("Client introuvable (ID: $client_id)");
+        error_log("ERREUR: Client introuvable (ID: $client_id)");
+        $_SESSION['error'] = "
+            <div style='text-align: center;'>
+                <div style='font-size: 3rem; margin-bottom: 1rem;'>❌</div>
+                <h3 style='margin-bottom: 1rem; color: #ff4757;'>Client introuvable</h3>
+                <p style='font-size: 1.1rem;'>Le client sélectionné n'existe pas ou a été désactivé.</p>
+            </div>
+        ";
+        header('Location: index.php?module=ventes&action=select_client');
+        exit;
     }
     
     error_log("Client trouvé: {$client['first_name']} {$client['last_name']}");
@@ -67,7 +96,7 @@ try {
     error_log("Numéro de vente généré: $sale_number");
     
     // Déterminer le statut de paiement selon le canal et le rôle
-    $is_client = ($_SESSION['role'] ?? '') === 'client';
+    $is_client = ($_SESSION['user_role'] ?? '') === 'client';
     $payment_status = ($channel === 'Web' && $is_client) ? 'pending' : 'paid';
     $sale_status = ($payment_status === 'pending') ? 'pending' : 'completed';
     
@@ -75,7 +104,7 @@ try {
     
     // Récupérer l'employee_id si c'est un employé qui vend
     $employee_id = null;
-    if (in_array($_SESSION['role'] ?? '', ['admin', 'manager', 'employee'])) {
+    if (in_array($_SESSION['user_role'] ?? '', ['admin', 'manager', 'employee'])) {
         $stmt_emp = $pdo->prepare("SELECT employee_id FROM users WHERE id = ?");
         $stmt_emp->execute([$_SESSION['user_id']]);
         $employee_id = $stmt_emp->fetchColumn();
@@ -244,11 +273,11 @@ try {
     error_log("Message de succès défini");
     error_log("=== FIN VALIDATION VENTE - SUCCÈS ===");
     
-    // Redirection selon le rôle
-    if ($_SESSION['role'] === 'client') {
-        header('Location: ../../index.php?module=client&action=commandes');
+    // 🔴 CORRECTION : Redirection selon le rôle (chemins absolus)
+    if ($_SESSION['user_role'] === 'client') {
+        header('Location: index.php?module=client&action=commandes');
     } else {
-        header('Location: ../../index.php?module=ventes');
+        header('Location: index.php?module=ventes');
     }
     exit;
     
@@ -278,8 +307,8 @@ try {
         </div>
     ";
     
-    // Redirection vers le panier
-    $redirect = '../../index.php?module=ventes&action=panier';
+    // 🔴 CORRECTION : Redirection vers le panier (chemin absolu)
+    $redirect = 'index.php?module=ventes&action=panier';
     if (isset($client_id)) {
         $redirect .= "&client_id=$client_id";
     }

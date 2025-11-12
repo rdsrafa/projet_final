@@ -4,7 +4,7 @@
 require_once __DIR__ . '/../include/db.php';
 
 // Vérifier que l'utilisateur est bien un client
-if ($_SESSION['role'] !== 'client') {
+if ($_SESSION['user_role'] !== 'client') {
     header('Location: ../index.php');
     exit;
 }

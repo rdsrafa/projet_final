@@ -2,22 +2,15 @@
 // modules/ventes/panier.php - Interface de vente simplifiée
 
 require_once __DIR__ . '/../../include/db.php';
-// DEBUG - À retirer après correction
-error_log("=== DEBUG PANIER ===");
-error_log("Role: " . ($_SESSION['role'] ?? 'non défini'));
-error_log("User ID: " . ($_SESSION['user_id'] ?? 'non défini'));
-error_log("Client ID GET: " . ($_GET['client_id'] ?? 'non défini'));
-error_log("Is Employee: " . ($is_employee ? 'OUI' : 'NON'));
-error_log("Is Client: " . ($is_client ? 'OUI' : 'NON'));
+
+// Déterminer le rôle AVANT de les utiliser
+$is_employee = in_array($_SESSION['user_role'] ?? '', ['admin', 'manager', 'employee']);
+$is_client = ($_SESSION['user_role'] ?? '') === 'client';
+
 try {
     $pdo = getDB();
-    
-    // Déterminer le rôle
-    $is_employee = in_array($_SESSION['role'] ?? '', ['admin', 'manager', 'employee']);
-    $is_client = ($_SESSION['role'] ?? '') === 'client';
 
     // Déterminer le client
-   // Déterminer le client
     $selected_client_id = null;
     $selected_client_name = '';
     $selected_client_type = 'Regular';
@@ -53,7 +46,8 @@ try {
             exit;
         }
     }
-        // Récupérer les produits disponibles avec leur stock
+
+    // Récupérer les produits disponibles avec leur stock
     $products = $pdo->query("
         SELECT 
             p.*,

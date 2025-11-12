@@ -388,7 +388,7 @@ $stats = $stats->fetch();
                     <div class="points-label">💎 Points de Fidélité</div>
                     <div class="loyalty-points"><?php echo number_format($client['loyalty_points']); ?></div>
                     <div class="points-info">
-                        ℹ️ 1 point = 1€ dépensé • 100 points = 10€ de réduction
+                        ℹ️ 1 point = 10€ dépensé • 100 points = 10€ de réduction
                     </div>
                 </div>
                 <div style="font-size: 4rem; opacity: 0.3;">🎁</div>

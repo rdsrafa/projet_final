@@ -4,7 +4,7 @@
 require_once __DIR__ . '/../../include/db.php';
 
 // Vérifier que c'est bien un admin/employé
-if (!in_array($_SESSION['role'] ?? '', ['admin', 'manager', 'employee'])) {
+if (!in_array($_SESSION['user_role'] ?? '', ['admin', 'manager', 'employee'])) {
     header('Location: index.php?module=ventes');
     exit;
 }
