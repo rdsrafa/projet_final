@@ -1,27 +1,25 @@
 <?php
-// login.php - Authentification multi-rôles (Admin, Client, Fournisseur)
 session_start();
 
-// Si déjà connecté, rediriger selon le rôle
 if (isset($_SESSION['user_id'])) {
     $role = $_SESSION['user_role'];
     if ($role === 'client') {
         header('Location: client/dashboard.php');
     } elseif ($role === 'supplier') {
         header('Location: supplier/dashboard.php');
+    } elseif ($role === 'employee') {
+        header('Location: employes/dashboard.php');  // ✅ Ajoutez ça
     } else {
-        header('Location: index.php'); // Admin/Manager/Employee
+        header('Location: index.php');
     }
     exit;
 }
 
-// Inclure la connexion à la base de données
 require_once 'include/db.php';
 
 $error = '';
 $success = '';
 
-// Traitement du formulaire de connexion
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -32,7 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db = getDB();
             
-            // Récupérer l'utilisateur par email
             $stmt = $db->prepare("
                 SELECT u.*, 
                        e.first_name AS emp_first_name, e.last_name AS emp_last_name, e.position,
@@ -49,48 +46,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($user && password_verify($password, $user['password_hash'])) {
                 if ($user['active'] != 1) {
-                    $error = "Votre compte n'est pas activé. Veuillez contacter l'administrateur.";
+                    $error = "Votre compte n'est pas activé.";
                 }
-                // Vérifier si le fournisseur est approuvé
                 elseif ($user['role'] === 'supplier' && $user['supplier_status'] !== 'approved') {
-                    $error = "Votre compte fournisseur est en attente d'approbation par l'administrateur.";
+                    $error = "Votre compte fournisseur est en attente d'approbation.";
                 } else {
                     // Connexion réussie
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['user_email'] = $user['email'];
-                    $_SESSION['user_role'] = $user['role'];
+                    $_SESSION['user_role'] = $user['role'];  // ✅ IMPORTANT !
                     
-                    // Informations spécifiques selon le rôle
+                    // Client
                     if ($user['role'] === 'client') {
                         $_SESSION['client_id'] = $user['client_id'];
                         $_SESSION['user_name'] = $user['cli_first_name'] . ' ' . $user['cli_last_name'];
-                        
-                        // Mettre à jour la dernière connexion
                         $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);
-                        
                         header('Location: client/dashboard.php');
                         exit;
-                        
-                    } elseif ($user['role'] === 'supplier') {
+                    } 
+                    // Fournisseur
+                    elseif ($user['role'] === 'supplier') {
                         $_SESSION['supplier_id'] = $user['supplier_id'];
                         $_SESSION['user_name'] = $user['supplier_name'];
-                        
-                        // Mettre à jour la dernière connexion
                         $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);
-                        
                         header('Location: supplier/dashboard.php');
                         exit;
-                        
-                    } else {
-                        // Admin, Manager, Employee
+                    }
+                    // Employés (employee, manager, admin)
+                    else {
                         $_SESSION['user_name'] = $user['emp_first_name'] . ' ' . $user['emp_last_name'];
                         $_SESSION['user_position'] = $user['position'];
                         $_SESSION['employee_id'] = $user['employee_id'];
-                        
-                        // Mettre à jour la dernière connexion
                         $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$user['id']]);
                         
-                        header('Location: index.php');
+                        // ✅ Si employee simple -> dashboard employé
+                        if ($user['role'] === 'employee') {
+                            header('Location: employes/dashboard.php');
+                        } else {
+                            // Manager/Admin -> dashboard principal
+                            header('Location: index.php');
+                        }
                         exit;
                     }
                 }
@@ -103,7 +98,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
 // Récupérer le message de succès si inscription réussie
 if (isset($_GET['registered'])) {
     $success = "Inscription réussie ! Vous pouvez maintenant vous connecter.";

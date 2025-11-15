@@ -1,7 +1,7 @@
 <?php
 /**
  * modules/rh/personnel.php
- * Module de gestion du personnel
+ * Module de gestion du personnel avec création automatique de compte
  */
 
 // Vérification session admin
@@ -9,9 +9,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
     header('Location: login.php');
     exit;
 }
-
-// La connexion DB est déjà chargée dans index.php
-// Pas besoin de require_once ici
 
 $success = '';
 $error = '';
@@ -22,6 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $action = $_POST['action'];
     
     try {
+        $db->beginTransaction();
+        
         switch($action) {
             case 'add_employee':
                 $first_name = trim($_POST['first_name']);
@@ -38,6 +37,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $city = trim($_POST['city'] ?? '');
                 $postal_code = trim($_POST['postal_code'] ?? '');
                 
+                // 🆕 Récupérer les infos de connexion
+                $create_account = isset($_POST['create_account']) && $_POST['create_account'] == '1';
+                $username = trim($_POST['username'] ?? '');
+                $password = $_POST['password'] ?? '';
+                $role = $_POST['role'] ?? 'employee';
+                
+                // Vérifier si l'email existe déjà
+                $stmt = $db->prepare("SELECT id FROM employees WHERE email = ?");
+                $stmt->execute([$email]);
+                if ($stmt->fetch()) {
+                    throw new Exception("Un employé avec cet email existe déjà");
+                }
+                
+                // Si création de compte demandée, vérifier les champs
+                if ($create_account) {
+                    if (empty($username)) {
+                        throw new Exception("Le nom d'utilisateur est obligatoire pour créer un compte");
+                    }
+                    if (empty($password)) {
+                        throw new Exception("Le mot de passe est obligatoire pour créer un compte");
+                    }
+                    if (strlen($password) < 6) {
+                        throw new Exception("Le mot de passe doit contenir au moins 6 caractères");
+                    }
+                    
+                    // Vérifier si username existe
+                    $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+                    $stmt->execute([$username]);
+                    if ($stmt->fetch()) {
+                        throw new Exception("Ce nom d'utilisateur est déjà utilisé");
+                    }
+                    
+                    // Vérifier si email existe dans users
+                    $stmt = $db->prepare("SELECT id FROM users WHERE email = ?");
+                    $stmt->execute([$email]);
+                    if ($stmt->fetch()) {
+                        throw new Exception("Cet email est déjà utilisé dans les comptes utilisateurs");
+                    }
+                }
+                
+                // Insérer l'employé
                 $stmt = $db->prepare("
                     INSERT INTO employees 
                     (first_name, last_name, email, phone, position, department, 
@@ -49,7 +89,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $contract_type, $salary, $hire_date, $birth_date, $address, $city, $postal_code
                 ]);
                 
-                $success = "✅ Employé ajouté avec succès !";
+                $employee_id = $db->lastInsertId();
+                
+                // 🆕 Créer le compte utilisateur si demandé
+                if ($create_account) {
+                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                    
+                    $stmt = $db->prepare("
+                        INSERT INTO users (employee_id, username, email, password_hash, role, active)
+                        VALUES (?, ?, ?, ?, ?, 1)
+                    ");
+                    $stmt->execute([$employee_id, $username, $email, $password_hash, $role]);
+                    
+                    $success = "✅ Employé et compte utilisateur créés avec succès !<br>📧 Email: <strong>$email</strong><br>👤 Username: <strong>$username</strong><br>🎭 Rôle: <strong>" . strtoupper($role) . "</strong>";
+                } else {
+                    $success = "✅ Employé ajouté avec succès ! Vous pouvez créer son compte plus tard depuis la section 'Gestion du Personnel'.";
+                }
+                
+                $db->commit();
                 break;
                 
             case 'update_employee':
@@ -79,23 +136,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 ]);
                 
                 $success = "✅ Employé modifié avec succès !";
+                $db->commit();
                 break;
                 
             case 'deactivate_employee':
                 $employee_id = $_POST['employee_id'];
                 $stmt = $db->prepare("UPDATE employees SET status = 'inactive' WHERE id = ?");
                 $stmt->execute([$employee_id]);
-                $success = "🚫 Employé désactivé.";
+                
+                // Désactiver aussi le compte utilisateur
+                $stmt = $db->prepare("UPDATE users SET active = 0 WHERE employee_id = ?");
+                $stmt->execute([$employee_id]);
+                
+                $success = "🚫 Employé et compte utilisateur désactivés.";
+                $db->commit();
                 break;
                 
             case 'reactivate_employee':
                 $employee_id = $_POST['employee_id'];
                 $stmt = $db->prepare("UPDATE employees SET status = 'active' WHERE id = ?");
                 $stmt->execute([$employee_id]);
-                $success = "✅ Employé réactivé.";
+                
+                // Réactiver aussi le compte utilisateur
+                $stmt = $db->prepare("UPDATE users SET active = 1 WHERE employee_id = ?");
+                $stmt->execute([$employee_id]);
+                
+                $success = "✅ Employé et compte utilisateur réactivés.";
+                $db->commit();
                 break;
         }
-    } catch (PDOException $e) {
+    } catch (Exception $e) {
+        $db->rollBack();
         $error = "Erreur : " . $e->getMessage();
     }
 }
@@ -114,13 +185,18 @@ try {
         FROM employees
     ")->fetch();
     
-    // Liste des employés
+    // Liste des employés avec info compte
     $employees = $db->query("
         SELECT 
             e.*,
             TIMESTAMPDIFF(YEAR, e.hire_date, CURDATE()) as seniority_years,
-            TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) as age
+            TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) as age,
+            u.id as user_id,
+            u.username,
+            u.role,
+            u.active as user_active
         FROM employees e
+        LEFT JOIN users u ON e.id = u.employee_id
         ORDER BY e.status DESC, e.hire_date DESC
     ")->fetchAll();
     
@@ -376,6 +452,25 @@ try {
         color: #6C5CE7;
     }
 
+    /* 🆕 Badge compte utilisateur */
+    .badge-account {
+        padding: 0.3rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    .badge-has-account {
+        background: rgba(78, 205, 196, 0.2);
+        color: var(--secondary);
+    }
+
+    .badge-no-account {
+        background: rgba(255, 230, 109, 0.2);
+        color: #FFE66D;
+    }
+
     .modal {
         display: none;
         position: fixed;
@@ -467,13 +562,53 @@ try {
     .alert-success {
         background: rgba(78, 205, 196, 0.2);
         border: 1px solid var(--secondary);
-        color: var(--secondary);
+        color: var(--light);
     }
 
     .alert-error {
         background: rgba(255, 107, 107, 0.2);
         border: 1px solid var(--primary);
         color: var(--primary);
+    }
+
+    /* 🆕 Section compte utilisateur dans le formulaire */
+    .account-section {
+        background: rgba(78, 205, 196, 0.05);
+        border: 2px dashed var(--secondary);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .checkbox-wrapper input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .checkbox-wrapper label {
+        margin: 0 !important;
+        font-weight: 700 !important;
+        color: var(--light) !important;
+        cursor: pointer;
+    }
+
+    #accountFields {
+        display: none;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--glass-border);
+    }
+
+    #accountFields.active {
+        display: block;
     }
 
     @keyframes slideIn {
@@ -509,12 +644,21 @@ try {
             <h3 style="font-size: 1.5rem; color: var(--light); margin-bottom: 0.5rem;">👥 Gestion du Personnel</h3>
             <p style="color: var(--secondary); font-size: 0.9rem;">Équipe Adoo Sneakers</p>
         </div>
-        <button class="btn btn-primary" onclick="showAddEmployeeModal()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 24 24">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-            </svg>
-            Nouvel Employé
-        </button>
+        <div style="display: flex; gap: 1rem;">
+            <button class="btn btn-secondary" onclick="window.location.href='?module=rh&action=conges'">
+                    🏖️ Gérer les Congés
+            </button>
+            <button class="btn btn-secondary" onclick="window.location.href='?module=rh&action=paie'">
+                    💰 Consulter fiche de paie
+            </button>
+            <button class="btn btn-primary" onclick="showAddEmployeeModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 24 24">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                Nouvel Employé
+            </button>
+        <!-- Dans votre section de boutons RH -->
+        </div>
     </div>
 
     <!-- Statistiques -->
@@ -596,11 +740,23 @@ try {
                                 <span class="badge-contract badge-<?php echo strtolower($emp['contract_type']); ?>">
                                     <?php echo $emp['contract_type']; ?>
                                 </span>
+                                <?php if ($emp['user_id']): ?>
+                                    <span class="badge-account badge-has-account" title="Compte utilisateur actif">
+                                        🔑 <?php echo strtoupper($emp['role']); ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge-account badge-no-account" title="Pas de compte utilisateur">
+                                        ⚠️ Sans compte
+                                    </span>
+                                <?php endif; ?>
                             </div>
                             <div class="employee-position">
                                 <?php echo htmlspecialchars($emp['position']); ?>
                                 <?php if ($emp['department']): ?>
                                     • <?php echo htmlspecialchars($emp['department']); ?>
+                                <?php endif; ?>
+                                <?php if ($emp['user_id']): ?>
+                                    <br><small style="color: var(--secondary);">👤 Username: <?php echo htmlspecialchars($emp['username']); ?></small>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -655,6 +811,13 @@ try {
                     <button class="btn-action btn-edit" onclick="showEditEmployeeModal(<?php echo htmlspecialchars(json_encode($emp)); ?>)">
                         ✏️ Modifier
                     </button>
+                    
+                    <?php if (!$emp['user_id']): ?>
+                    <a href="index.php?module=rh&action=employe" class="btn-action" style="background: rgba(108, 92, 231, 0.2); color: #6C5CE7; text-decoration: none;">
+                        🔑 Créer Compte
+                    </a>
+                    <?php endif; ?>
+                    
                     <?php if ($emp['status'] === 'active'): ?>
                     <form method="POST" style="display: inline;">
                         <input type="hidden" name="action" value="deactivate_employee">
@@ -702,7 +865,7 @@ try {
             <div class="form-row">
                 <div class="form-group">
                     <label>Email *</label>
-                    <input type="email" class="form-control" name="email" required>
+                    <input type="email" class="form-control" name="email" id="employee_email" required>
                 </div>
                 <div class="form-group">
                     <label>Téléphone</label>
@@ -761,6 +924,49 @@ try {
                 <div class="form-group">
                     <label>Code Postal</label>
                     <input type="text" class="form-control" name="postal_code" placeholder="75001">
+                </div>
+            </div>
+
+            <!-- 🆕 SECTION COMPTE UTILISATEUR (OBLIGATOIRE) -->
+            <div class="account-section">
+                <h4 style="color: var(--light); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    🔑 Identifiants de Connexion
+                    <span style="font-size: 0.8rem; color: var(--secondary); font-weight: normal;">(obligatoire)</span>
+                </h4>
+                
+                <p style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                    L'employé utilisera ces identifiants pour se connecter à son interface.
+                </p>
+                
+                <div class="form-group">
+                    <label>👤 Nom d'utilisateur *</label>
+                    <input type="text" class="form-control" name="username" id="username_input" 
+                           placeholder="Ex: jdupont" pattern="[a-zA-Z0-9_.]{3,}" required
+                           title="Au moins 3 caractères (lettres, chiffres, underscore, point)">
+                    <small style="color: var(--secondary); font-size: 0.85rem;">
+                        ✨ Conseil: prénom.nom (ex: jean.dupont)
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>🔒 Mot de passe *</label>
+                    <input type="password" class="form-control" name="password" id="password_input" 
+                           minlength="6" placeholder="Min 6 caractères" required>
+                    <small style="color: var(--secondary); font-size: 0.85rem;">
+                        Minimum 6 caractères - L'employé pourra le changer plus tard
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>🎭 Rôle dans le système *</label>
+                    <select class="form-control" name="role" id="role_input" required>
+                        <option value="employee">👤 Employee (accès standard - ventes, stock)</option>
+                        <option value="manager">👔 Manager (gestion équipe)</option>
+                        <option value="admin">👑 Administrateur (accès complet)</option>
+                    </select>
+                    <small style="color: var(--secondary); font-size: 0.85rem;">
+                        ⚠️ Choisissez selon les responsabilités de l'employé
+                    </small>
                 </div>
             </div>
 
@@ -882,6 +1088,44 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
 }
 
+// 🆕 Afficher/masquer les champs de compte
+function toggleAccountFields() {
+    const checkbox = document.getElementById('create_account_checkbox');
+    const fields = document.getElementById('accountFields');
+    const usernameInput = document.getElementById('username_input');
+    const passwordInput = document.getElementById('password_input');
+    const roleInput = document.getElementById('role_input');
+    
+    if (checkbox.checked) {
+        fields.classList.add('active');
+        usernameInput.required = true;
+        passwordInput.required = true;
+        roleInput.required = true;
+        
+        // Auto-remplir le username basé sur l'email
+        const email = document.getElementById('employee_email').value;
+        if (email && !usernameInput.value) {
+            usernameInput.value = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+    } else {
+        fields.classList.remove('active');
+        usernameInput.required = false;
+        passwordInput.required = false;
+        roleInput.required = false;
+    }
+}
+
+// Auto-générer username basé sur l'email
+document.getElementById('employee_email').addEventListener('input', function() {
+    const checkbox = document.getElementById('create_account_checkbox');
+    const usernameInput = document.getElementById('username_input');
+    
+    if (checkbox.checked && this.value) {
+        const emailPart = this.value.split('@')[0].toLowerCase();
+        usernameInput.value = emailPart.replace(/[^a-z0-9]/g, '');
+    }
+});
+
 function filterEmployees() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const department = document.getElementById('departmentFilter').value;
@@ -917,4 +1161,14 @@ document.querySelectorAll('.modal').forEach(modal => {
         }
     });
 });
+
+// Auto-fermeture des messages après 5 secondes
+setTimeout(function() {
+    const alerts = document.querySelectorAll('.alert-message');
+    alerts.forEach(alert => {
+        alert.style.transition = 'opacity 0.5s ease';
+        alert.style.opacity = '0';
+        setTimeout(() => alert.remove(), 500);
+    });
+}, 5000);
 </script>

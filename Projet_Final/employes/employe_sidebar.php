@@ -1,163 +1,308 @@
 <!-- Sidebar pour les Employés -->
-<nav class="col-md-2 d-none d-md-block bg-dark sidebar" style="min-height: 100vh;">
-    <div class="sidebar-sticky">
-        <div class="text-center py-4 border-bottom border-secondary">
-            <h5 class="text-white">👤 Espace Employé</h5>
-            <small class="text-muted">
-                <?= htmlspecialchars($_SESSION['employe_nom'] ?? 'Employé') ?>
-            </small>
-            <br>
-            <small class="badge badge-primary mt-1">
-                <?= htmlspecialchars($_SESSION['employe_poste'] ?? '') ?>
-            </small>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <h3>👟 ADOO Sneakers</h3>
         </div>
-        
-        <ul class="nav flex-column mt-3">
-            <!-- Dashboard -->
-            <li class="nav-item">
-                <a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active bg-primary' : '' ?>" 
-                   href="/Projet_Final/employe/dashboard.php">
-                    <span class="mr-2">🏠</span> Tableau de Bord
-                </a>
-            </li>
-            
-            <!-- Divider -->
-            <li class="nav-item">
-                <hr class="bg-secondary">
-                <h6 class="sidebar-heading text-muted px-3 mt-3 mb-1 text-uppercase">
-                    <small>Ventes</small>
-                </h6>
-            </li>
-            
-            <!-- Nouvelle Vente -->
-            <li class="nav-item">
-                <a class="nav-link text-white" 
-                   href="/Projet_Final/modules/ventes/ventes.php">
-                    <span class="mr-2">🛒</span> Nouvelle Vente
-                </a>
-            </li>
-            
-            <!-- Clients -->
-            <li class="nav-item">
-                <a class="nav-link text-white" 
-                   href="/Projet_Final/modules/ventes/clients.php">
-                    <span class="mr-2">👥</span> Clients
-                </a>
-            </li>
-            
-            <!-- Divider -->
-            <li class="nav-item">
-                <hr class="bg-secondary">
-                <h6 class="sidebar-heading text-muted px-3 mt-3 mb-1 text-uppercase">
-                    <small>Stock</small>
-                </h6>
-            </li>
-            
-            <!-- Consultation Stock -->
-            <li class="nav-item">
-                <a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) == 'stock.php' ? 'active bg-primary' : '' ?>" 
-                   href="/Projet_Final/employe/stock.php">
-                    <span class="mr-2">📦</span> Consulter le Stock
-                </a>
-            </li>
-            
-            <!-- Divider -->
-            <li class="nav-item">
-                <hr class="bg-secondary">
-                <h6 class="sidebar-heading text-muted px-3 mt-3 mb-1 text-uppercase">
-                    <small>Mon Espace</small>
-                </h6>
-            </li>
-            
-            <!-- Mes Fiches de Paie -->
-            <li class="nav-item">
-                <a class="nav-link text-white <?= basename($_SERVER['PHP_SELF']) == 'mes_fiches_paie.php' ? 'active bg-primary' : '' ?>" 
-                   href="/Projet_Final/employe/mes_fiches_paie.php">
-                    <span class="mr-2">💰</span> Mes Fiches de Paie
-                </a>
-            </li>
-            
-            <!-- Mes Congés (optionnel) -->
-            <li class="nav-item">
-                <a class="nav-link text-white" 
-                   href="/Projet_Final/employe/mes_conges.php">
-                    <span class="mr-2">🏖️</span> Mes Congés
-                </a>
-            </li>
-            
-            <!-- Divider -->
-            <li class="nav-item">
-                <hr class="bg-secondary">
-            </li>
-            
-            <!-- Déconnexion -->
-            <li class="nav-item">
-                <a class="nav-link text-danger" 
-                   href="/Projet_Final/logout.php"
-                   onclick="return confirm('Voulez-vous vraiment vous déconnecter ?')">
-                    <span class="mr-2">🚪</span> Déconnexion
-                </a>
-            </li>
-        </ul>
-        
-        <!-- Informations rapides -->
-        <div class="mt-auto p-3 border-top border-secondary" style="position: absolute; bottom: 0; width: 100%;">
-            <small class="text-muted">
-                <div class="mb-2">
-                    <strong class="text-white">Heure :</strong>
-                    <span id="current-time" class="text-white"></span>
-                </div>
-                <div>
-                    <strong class="text-white">Date :</strong>
-                    <span class="text-white"><?= date('d/m/Y') ?></span>
-                </div>
-            </small>
+        <div class="user-badge">
+            <div class="avatar">
+                <?php echo strtoupper(substr($_SESSION['employe_nom'] ?? 'E', 0, 2)); ?>
+            </div>
+            <div class="user-details">
+                <strong><?= htmlspecialchars($_SESSION['employe_nom'] ?? 'Employé') ?></strong>
+                <small><?= htmlspecialchars($_SESSION['employe_poste'] ?? 'Vendeur') ?></small>
+            </div>
         </div>
     </div>
-</nav>
+
+    <nav class="sidebar-nav">
+        <!-- Dashboard -->
+        <div class="nav-section">
+            <a href="index.php?module=employe&action=dashboard" 
+               class="nav-item <?= ($module === 'employe' && $action === 'dashboard') ? 'active' : '' ?>">
+                <span class="icon">🏠</span>
+                <span class="label">Tableau de Bord</span>
+            </a>
+        </div>
+
+        <!-- Ventes -->
+        <div class="nav-section">
+            <div class="nav-section-title">Ventes</div>
+            
+            <a href="index.php?module=employe&action=vente" 
+               class="nav-item <?= ($module === 'employe' && $action === 'vente') ? 'active' : '' ?>">
+                <span class="icon">🛒</span>
+                <span class="label">Nouvelle Vente</span>
+            </a>
+            
+            <a href="index.php?module=employe&action=ventes_list" 
+               class="nav-item <?= ($module === 'employe' && $action === 'ventes_list') ? 'active' : '' ?>">
+                <span class="icon">📋</span>
+                <span class="label">Mes Ventes</span>
+            </a>
+            
+            <a href="index.php?module=ventes&action=clients" 
+               class="nav-item <?= ($module === 'ventes' && $action === 'clients') ? 'active' : '' ?>">
+                <span class="icon">👥</span>
+                <span class="label">Clients</span>
+            </a>
+        </div>
+
+        <!-- Stock -->
+        <div class="nav-section">
+            <div class="nav-section-title">Stock</div>
+            
+            <a href="index.php?module=employe&action=stock" 
+               class="nav-item <?= ($module === 'employe' && $action === 'stock') ? 'active' : '' ?>">
+                <span class="icon">📦</span>
+                <span class="label">Consulter Stock</span>
+            </a>
+        </div>
+
+        <!-- Mon Espace -->
+        <div class="nav-section">
+            <div class="nav-section-title">Mon Espace</div>
+            
+            <a href="index.php?module=employe&action=paie" 
+               class="nav-item <?= ($module === 'employe' && $action === 'paie') ? 'active' : '' ?>">
+                <span class="icon">💰</span>
+                <span class="label">Mes Fiches de Paie</span>
+            </a>
+            
+            <a href="index.php?module=employe&action=conges" 
+               class="nav-item <?= ($module === 'employe' && $action === 'conges') ? 'active' : '' ?>">
+                <span class="icon">🏖️</span>
+                <span class="label">Mes Congés</span>
+            </a>
+        </div>
+
+        <!-- Déconnexion -->
+        <div class="nav-section">
+            <a href="logout.php" 
+               class="nav-item nav-item-danger"
+               onclick="return confirm('Voulez-vous vraiment vous déconnecter ?')">
+                <span class="icon">🚪</span>
+                <span class="label">Déconnexion</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Footer Sidebar -->
+    <div class="sidebar-footer">
+        <div class="info-box">
+            <div class="info-item">
+                <strong>Heure :</strong>
+                <span id="current-time">--:--:--</span>
+            </div>
+            <div class="info-item">
+                <strong>Date :</strong>
+                <span><?= date('d/m/Y') ?></span>
+            </div>
+        </div>
+    </div>
+</aside>
 
 <style>
+/* Sidebar Styles */
 .sidebar {
     position: fixed;
-    top: 56px;
-    bottom: 0;
     left: 0;
-    z-index: 100;
-    padding: 0;
-    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
-}
-
-.sidebar-sticky {
-    position: relative;
     top: 0;
-    height: calc(100vh - 56px);
-    padding-top: 0;
-    overflow-x: hidden;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+.sidebar-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.logo h3 {
+    color: white;
+    margin: 0;
+    font-size: 1.3rem;
+    text-align: center;
+}
+
+.user-badge {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+}
+
+.user-badge .avatar {
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-details strong {
+    font-size: 0.95rem;
+}
+
+.user-details small {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.8rem;
+}
+
+.sidebar-nav {
+    flex: 1;
     overflow-y: auto;
+    padding: 1rem 0;
 }
 
-.nav-link {
-    font-weight: 500;
-    color: #fff;
-    padding: 0.75rem 1rem;
-    transition: all 0.3s;
+.nav-section {
+    margin-bottom: 1.5rem;
 }
 
-.nav-link:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #fff !important;
-}
-
-.nav-link.active {
-    background-color: #007bff;
-    color: #fff;
-    border-radius: 5px;
-    margin: 0 10px;
-}
-
-.sidebar-heading {
-    font-size: .75rem;
+.nav-section-title {
+    padding: 0.5rem 1.5rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem 1.5rem;
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.nav-item:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.nav-item.active {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border-left: 4px solid #667eea;
+}
+
+.nav-item.active::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-right: 10px solid white;
+}
+
+.nav-item .icon {
+    font-size: 1.3rem;
+    width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-item .label {
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.nav-item-danger {
+    color: rgba(255, 107, 107, 0.9) !important;
+}
+
+.nav-item-danger:hover {
+    background: rgba(255, 107, 107, 0.15) !important;
+    color: #ff6b6b !important;
+}
+
+.sidebar-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.info-box {
+    background: rgba(255,255,255,0.05);
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
+}
+
+.info-item strong {
+    color: rgba(255,255,255,0.7);
+}
+
+/* Scrollbar */
+.sidebar-nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 70px;
+    }
+    
+    .user-badge,
+    .nav-section-title,
+    .nav-item .label,
+    .sidebar-footer {
+        display: none;
+    }
+    
+    .logo h3 {
+        font-size: 1.5rem;
+    }
+    
+    .nav-item {
+        justify-content: center;
+    }
 }
 </style>
 
@@ -165,9 +310,15 @@
 // Mettre à jour l'heure en temps réel
 function updateTime() {
     const now = new Date();
-    const timeStr = now.toLocaleTimeString('fr-FR');
-    document.getElementById('current-time').textContent = timeStr;
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timeElement = document.getElementById('current-time');
+    if (timeElement) {
+        timeElement.textContent = `${hours}:${minutes}:${seconds}`;
+    }
 }
+
 updateTime();
 setInterval(updateTime, 1000);
 </script>

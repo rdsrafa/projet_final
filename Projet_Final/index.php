@@ -49,7 +49,6 @@ switch($module) {
             require_once 'modules/achats/achats.php';
         }
         break;
-    
 
     case 'stocks':
         if ($action === 'inventaire') {
@@ -59,7 +58,6 @@ switch($module) {
         } elseif ($action === 'produits') {
             require_once 'modules/stocks/produits.php';
         } elseif ($action === 'add_product') {
-            // 🔴 AJOUTER CETTE LIGNE
             require_once 'modules/stocks/add_product.php';
         } else {
             require_once 'modules/stocks/produits.php';
@@ -69,6 +67,8 @@ switch($module) {
     case 'rh':
         if ($action === 'personnel') {
             require_once 'modules/rh/personnel.php';
+        } elseif ($action === 'employe') {
+            require_once 'modules/personnel/employe.php';
         } elseif ($action === 'paie') {
             require_once 'modules/rh/paie.php';
         } elseif ($action === 'conges') {
@@ -79,13 +79,30 @@ switch($module) {
             require_once 'modules/rh/personnel.php';
         }
         break;
-    case 'personnel';
-        if($action === 'employe_paie'){
-            require_once 'modules/personnel/employe_paie.php';
-        } elseif ($action === 'employe'){
-            require_once 'modules/personnel/employe.php';
+        
+    case 'employes':  // ✅ AVEC LE 'S'
+        if ($action === 'dashboard') {
+            require_once 'employes/dashboard.php';
+        } elseif ($action === 'mes_fiches_paie') {
+            require_once 'employes/mes_fiches_paie.php';  // ✅ Utilisez employe_paie.php
+        } elseif ($action === 'mes_conges') {
+            require_once 'employes/mes_conges.php';
+        } elseif ($action === 'stock') {
+            require_once 'employes/stock.php';
+        } elseif ($action === 'vente') {
+            require_once 'employes/ventes.php';
+        } elseif ($action === 'ventes_list') {
+            require_once 'employes/ventes_list.php';
+        } elseif ($action ==='valider_ventes'){
+            require_once 'employes/valider_ventes.php';
+        } elseif ($action ==='generer_pdf_paie'){
+            require_once 'employes/generer_pdf_paie.php';
+        }
+        else {
+            require_once 'employes/employe_dashboard.php';
         }
         break;
+    
     case 'admin':
         if ($action === 'suppliers') {
             require_once 'modules/admin/suppliers.php';
@@ -123,8 +140,14 @@ require_once 'include/header.php';
     </div>
 
     <div class="container">
-        <!-- Sidebar -->
-        <?php require_once 'include/sidebar.php'; ?>
+        <!-- Sidebar - Affichage conditionnel selon le rôle -->
+        <?php 
+        if (isset($_SESSION['role']) && $_SESSION['role'] === 'employee') {
+            require_once 'employes/employe_sidebar.php';
+        } else {
+            require_once 'include/sidebar.php';
+        }
+        ?>
 
         <!-- Main Content -->
         <main class="main-content">
@@ -138,6 +161,7 @@ require_once 'include/header.php';
                         'achats' => 'Gestion des Achats',
                         'stocks' => 'Gestion des Stocks',
                         'rh' => 'Ressources Humaines',
+                        'employes' => 'Espace Employé',
                         'admin' => 'Administration'
                     ];
                     echo $titles[$module] ?? 'Dashboard';
