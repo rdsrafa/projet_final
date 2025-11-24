@@ -1,12 +1,25 @@
 <?php
 // include/db.php - Configuration et connexion à la base de données
 
+// Détection automatique de l'environnement
+$is_local = ($_SERVER['SERVER_NAME'] == 'localhost' || $_SERVER['SERVER_NAME'] == '127.0.0.1');
+
 // Configuration de la base de données
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'base_de_donnee_si');
-define('DB_USER', 'root');
-define('DB_PASS', 'mysql');
-define('DB_CHARSET', 'utf8mb4');
+if ($is_local) {
+    // ENVIRONNEMENT LOCAL (AMPSS)
+    define('DB_HOST', 'localhost');
+    define('DB_NAME', 'base_de_donnee_si');
+    define('DB_USER', 'root');
+    define('DB_PASS', 'mysql');
+    define('DB_CHARSET', 'utf8mb4');
+} else {
+    // ENVIRONNEMENT PRODUCTION (InfinityFree)
+    define('DB_HOST', 'sql102.infinityfree.com');
+    define('DB_NAME', 'if0_40432147_base_de_donnee_si');
+    define('DB_USER', 'if0_40432147');
+    define('DB_PASS', 'knApm2nHZt');  // ← Remplace par ton vrai mot de passe (celui masqué)
+    define('DB_CHARSET', 'utf8mb4');
+}
 
 // Classe de gestion de la base de données
 class Database {
@@ -24,8 +37,14 @@ class Database {
             
             $this->connection = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch(PDOException $e) {
-            // En production, logger l'erreur au lieu de l'afficher
-            die("Erreur de connexion à la base de données : " . $e->getMessage());
+            // En production, ne pas afficher les détails de l'erreur
+            if (isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] == 'localhost') {
+                die("Erreur de connexion à la base de données : " . $e->getMessage());
+            } else {
+                // En production, logger l'erreur et afficher un message générique
+                error_log("DB Connection Error: " . $e->getMessage());
+                die("Une erreur s'est produite. Veuillez réessayer plus tard.");
+            }
         }
     }
     
@@ -90,7 +109,6 @@ function formatPrice($price) {
 }
 
 // Données de démonstration (pour le prototype)
-// En production, ces données seraient en base de données
 $demo_data = [
     'brands' => [
         ['id' => 1, 'name' => 'Nike', 'color' => '#FF6B6B'],
